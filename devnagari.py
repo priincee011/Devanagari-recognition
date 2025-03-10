@@ -8,6 +8,8 @@ import tensorflow as tf
 import pickle
 import sklearn as sk
 from sklearn.decomposition import PCA
+import os 
+
 
 st.title("Devanagari Character Recognition")
 
@@ -87,6 +89,11 @@ if canvas_result.image_data is not None:
             char = knn.predict(img_array_pca)
             st.write("Prediction result:", char[0])
             
+            st.markdown('[Open the HTML File](http://localhost:8000/test.html)')
+
+
+            
+ 
 
         elif model_choice == "Logistic":
             with open("logistic_regression.pkl", "rb") as f:
@@ -99,8 +106,17 @@ if canvas_result.image_data is not None:
             char = logistic.predict(img_array_pca)
             st.write("Prediction result:", char[0])
             
+            st.write("Click [here](http://localhost:8000/test.html) to open the HTML file.")
 
+
+
+
+
+
+
+
+
+
+
+ 
             
-
-
-
