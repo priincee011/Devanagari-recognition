@@ -4,12 +4,7 @@ from PIL import Image
 import numpy as np
 import io
 from tensorflow import keras
-import tensorflow as tf
 import pickle
-import sklearn as sk
-from sklearn.decomposition import PCA
-import os 
-
 
 st.title("Devanagari Character Recognition")
 
@@ -23,9 +18,7 @@ if num_or_char == "Character":
     model_choice = st.selectbox("Choose a  model", ["character model"], index=0)
     st.write(f"You have selected: {model_choice}")
 
-
-
-nepali_dict={
+nepali_dict = {
     0: 'क', 1: 'ख', 2: 'ग', 3: 'घ', 4: 'ङ', 5: 'च', 6: 'छ', 7: 'ज', 8: 'झ', 9: 'ञ',
     10: 'ट', 11: 'ठ', 12: 'ड', 13: 'ढ', 14: 'ण', 15: 'त', 16: 'थ', 17: 'द', 18: 'ध', 19: 'न',
     20: 'प', 21: 'फ', 22: 'ब', 23: 'भ', 24: 'म', 25: 'य', 26: 'र', 27: 'ल', 28: 'व', 29: 'श',
@@ -35,6 +28,7 @@ nepali_dict={
 st.subheader("Draw a Devanagari Character")
 st.write("Reminder!!!")
 st.write("Please draw in the center of the canvas below and also make sure to draw your character/number straight.")
+
 canvas_result = st_canvas(
     stroke_width=30,
     stroke_color="white",
@@ -47,8 +41,7 @@ canvas_result = st_canvas(
 
 if canvas_result.image_data is not None:
     img = Image.fromarray(canvas_result.image_data.astype(np.uint8))
-    img_resized = img.resize((32, 32))
-    img_resized = img_resized.convert("L")
+    img_resized = img.resize((32, 32)).convert("L")
 
     img_bytes = io.BytesIO()
     img_resized.save(img_bytes, format="PNG")
@@ -62,61 +55,42 @@ if canvas_result.image_data is not None:
     )
 
     if st.button('Predict'):
-        st.write("Prediction in progress...")
+        status_placeholder = st.empty()
+        status_placeholder.write("Prediction in progress...")
+
         img_array = np.array(img_resized) / 255.0
-        
 
         if model_choice == "character model":
             modelsel = keras.models.load_model("character.h5")
             char = modelsel.predict(img_array.reshape(1, 1024))
-            st.write(nepali_dict[np.argmax(char)])
-
-
+            prediction_result = nepali_dict[np.argmax(char)]
 
         elif model_choice == "Neural Network":
             modelsel = keras.models.load_model("digits.h5")
             char = modelsel.predict(img_array.reshape(1, 1024))
-            st.write("Predicted digit:", np.argmax(char))
-
+            prediction_result = f"Predicted digit: {np.argmax(char)}"
 
         elif model_choice == "KNN":
             with open("knn.pkl", "rb") as f:
                 knn = pickle.load(f)
             with open("pca_250.pkl", "rb") as f:
                 pca = pickle.load(f)
+
             img_array = img_array.reshape(1, -1)
             img_array_pca = pca.transform(img_array)
             char = knn.predict(img_array_pca)
-            st.write("Prediction result:", char[0])
-            
-            st.markdown('[Open the HTML File](http://localhost:8000/test.html)')
-
-
-            
- 
+            prediction_result = f"Prediction result: {char[0]}"
 
         elif model_choice == "Logistic":
             with open("logistic_regression.pkl", "rb") as f:
                 logistic = pickle.load(f)
             with open("pca_250.pkl", "rb") as f:
                 pca = pickle.load(f)
-                
+
             img_array = img_array.reshape(1, -1)
             img_array_pca = pca.transform(img_array)
             char = logistic.predict(img_array_pca)
-            st.write("Prediction result:", char[0])
-            
-            st.write("Click [here](http://localhost:8000/test.html) to open the HTML file.")
+            prediction_result = f"Prediction result: {char[0]}"
 
-
-
-
-
-
-
-
-
-
-
- 
-            
+        status_placeholder.empty()
+        st.markdown(f'<h2 style="text-align: center; color: green;">{prediction_result}</h2>', unsafe_allow_html=True)
