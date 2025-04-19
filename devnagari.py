@@ -91,7 +91,7 @@ if canvas_result.image_data is not None:
             img_array_pca = pca.transform(img_array)
             pred = knn.predict(img_array_pca)
             prediction_result = f"Predicted digit: {pred[0]} ({devanagari_digits[int(pred[0])]})"
-            st.write("Predicted character is:", devanagari_digits[pred[0]])
+            st.write("Predicted digit is:", devanagari_digits[pred[0]])
 
         elif model_choice == "Logistic":
             with open("logistic_regression.pkl", "rb") as f:
