@@ -12,11 +12,10 @@ num_or_char = st.radio("Choose an option", ("Number", "Character"))
 
 if num_or_char == "Number":
     model_choice = st.selectbox("Choose a Model", ["Neural Network", "KNN", "Logistic"], index=0)
-    st.write(f"You have selected: {model_choice}")
+else:
+    model_choice = st.selectbox("Choose a model", ["character model"], index=0)
 
-if num_or_char == "Character":
-    model_choice = st.selectbox("Choose a  model", ["character model"], index=0)
-    st.write(f"You have selected: {model_choice}")
+st.write(f"You have selected: {model_choice}")
 
 nepali_dict = {
     0: 'क', 1: 'ख', 2: 'ग', 3: 'घ', 4: 'ङ', 5: 'च', 6: 'छ', 7: 'ज', 8: 'झ', 9: 'ञ',
@@ -24,11 +23,13 @@ nepali_dict = {
     20: 'प', 21: 'फ', 22: 'ब', 23: 'भ', 24: 'म', 25: 'य', 26: 'र', 27: 'ल', 28: 'व', 29: 'श',
     30: 'ष', 31: 'स', 32: 'ह', 33: 'क्ष', 34: 'त्र', 35: 'ज्ञ'
 }
+devanagari_digits = {
+    0: '०', 1: '१', 2: '२', 3: '३', 4: '४',
+    5: '५', 6: '६', 7: '७', 8: '८', 9: '९'
+}
 
 st.subheader("Draw a Devanagari Character")
-st.write("Reminder!!!")
-st.write("Please draw in the center of the canvas below and also make sure to draw your character/number straight.")
-
+st.write("Draw in the center and keep your stroke straight.")
 canvas_result = st_canvas(
     stroke_width=30,
     stroke_color="white",
@@ -42,55 +43,70 @@ canvas_result = st_canvas(
 if canvas_result.image_data is not None:
     img = Image.fromarray(canvas_result.image_data.astype(np.uint8))
     img_resized = img.resize((32, 32)).convert("L")
+    buf = io.BytesIO()
+    img_resized.save(buf, format="PNG")
+    buf.seek(0)
+    st.download_button("Save Drawing as PNG", data=buf, file_name="drawing.png", mime="image/png")
 
-    img_bytes = io.BytesIO()
-    img_resized.save(img_bytes, format="PNG")
-    img_bytes.seek(0)
+    if st.button("Predict"):
+        status = st.empty()
+        status.write("Prediction in progress...")
 
-    st.download_button(
-        label="Save Drawing as PNG",
-        data=img_bytes,
-        file_name="drawing.png",
-        mime="image/png",
-    )
-
-    if st.button('Predict'):
-        status_placeholder = st.empty()
-        status_placeholder.write("Prediction in progress...")
-
-        img_array = np.array(img_resized) / 255.0
+        x = np.array(img_resized).reshape(1, -1) / 255.0
 
         if model_choice == "character model":
-            modelsel = keras.models.load_model("character.h5")
-            char = modelsel.predict(img_array.reshape(1, 1024))
-            prediction_result = nepali_dict[np.argmax(char)]
+            model = keras.models.load_model("character.h5")
+            probs = model.predict(x)
+            pred = np.argmax(probs)
+            result = f"Predicted character: {nepali_dict[pred]}"
+            st.write("Top 5 Predictions:")
+            flat = probs.flatten()
+            for idx in np.argsort(flat)[-5:][::-1]:
+                if idx in nepali_dict:
+                    st.write(f"{nepali_dict[idx]}: {flat[idx]*100:.3f}%")
 
         elif model_choice == "Neural Network":
-            modelsel = keras.models.load_model("digits.h5")
-            char = modelsel.predict(img_array.reshape(1, 1024))
-            prediction_result = f"Predicted digit: {np.argmax(char)}"
+            model = keras.models.load_model("digits.h5")
+            probs = model.predict(x)
+            pred = np.argmax(probs)
+            result = f"Predicted digit: {pred} ({devanagari_digits[pred]})"
+            st.write("Top 5 Predictions:")
+            flat = probs.flatten()
+            for idx in np.argsort(flat)[-5:][::-1]:
+                if idx in devanagari_digits:
+                    st.write(f"{idx} ({devanagari_digits[idx]}): {flat[idx]*100:.3f}%")
 
         elif model_choice == "KNN":
             with open("knn.pkl", "rb") as f:
                 knn = pickle.load(f)
             with open("pca_250.pkl", "rb") as f:
                 pca = pickle.load(f)
+            x_pca = pca.transform(x)
+            pred = knn.predict(x_pca)[0]
+            result = f"Predicted digit: {pred} ({devanagari_digits[int(pred)]})"
+            if hasattr(knn, "predict_proba"):
+                probs = knn.predict_proba(x_pca)[0]
+                st.write("Top 5 Predictions:")
+                flat = np.array(probs).flatten()
+                for idx in np.argsort(flat)[-5:][::-1]:
+                    if idx in devanagari_digits:
+                        st.write(f"{idx} ({devanagari_digits[idx]}): {flat[idx]*100:.3f}%")
 
-            img_array = img_array.reshape(1, -1)
-            img_array_pca = pca.transform(img_array)
-            char = knn.predict(img_array_pca)
-            prediction_result = f"Prediction result: {char[0]}"
-
-        elif model_choice == "Logistic":
+        else:
             with open("logistic_regression.pkl", "rb") as f:
-                logistic = pickle.load(f)
+                logreg = pickle.load(f)
             with open("pca_250.pkl", "rb") as f:
                 pca = pickle.load(f)
+            x_pca = pca.transform(x)
+            pred = logreg.predict(x_pca)[0]
+            result = f"Predicted digit: {pred} ({devanagari_digits[int(pred)]})"
+            if hasattr(logreg, "predict_proba"):
+                probs = logreg.predict_proba(x_pca)[0]
+                st.write("Top 5 Predictions:")
+                flat = np.array(probs).flatten()
+                for idx in np.argsort(flat)[-5:][::-1]:
+                    if idx in devanagari_digits:
+                        st.write(f"{idx} ({devanagari_digits[idx]}): {flat[idx]*100:.3f}%")
 
-            img_array = img_array.reshape(1, -1)
-            img_array_pca = pca.transform(img_array)
-            char = logistic.predict(img_array_pca)
-            prediction_result = f"Prediction result: {char[0]}"
-
-        status_placeholder.empty()
-        st.markdown(f'<h2 style="text-align: center; color: green;">{prediction_result}</h2>', unsafe_allow_html=True)
+        status.empty()
+        st.markdown(f'<h2 style="text-align:center;color:green;">{result}</h2>', unsafe_allow_html=True)
